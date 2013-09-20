@@ -80,6 +80,7 @@ function merge_local_config() {
     [ -f "packstack-config.post" ] || return
 
     while read line; do
+	[ "$line" ] || continue
 	local name=${line%=*}
 	local value=${line#*=}
 	set_packstack_value $answerfile $name $value
