@@ -43,7 +43,8 @@ function upgrade_other_computes() {
 	    echo Skipping myself
 	else
 	    echo HACK: Upgrading packages on $compute
-	    ssh -oStrictHostKeyChecking=no $compute "yum upgrade -y openstack-nova-compute && service openstack-nova-compute restart"
+	    ssh -oStrictHostKeyChecking=no $compute \
+		    "yum upgrade -y && service openstack-nova-compute restart"
 	fi
     done
 }

@@ -47,6 +47,8 @@ function install_rdo_release() {
     local release="$1"
 
     yum install -y ${RDO_BASE}/openstack-${release}/rdo-release-${release}.rpm
+    yum upgrade -y
+
     if rpm -q openstack-packstack > /dev/null; then
 	yum update -y openstack-*
     else
