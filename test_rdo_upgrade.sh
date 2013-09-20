@@ -15,7 +15,6 @@ install_rdo_release grizzly
 
 # Install openstack with packstack
 do_packstack
-merge_config_and_rerun_packstack
 
 # Gain credentials and create/test a VM
 source ~/keystonerc_admin

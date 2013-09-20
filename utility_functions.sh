@@ -55,37 +55,63 @@ function install_rdo_release() {
 }
 
 function get_packstack_answers() {
-    ls ~/packstack-answers*txt 2>/dev/null | cut -d ' ' -f 1
+    ls packstack-answers*txt ~/packstack-answers*txt 2>/dev/null | cut -d ' ' -f 1
+}
+
+function set_packstack_value() {
+    local answerfile="$1"
+    local config_key="$2"
+    local config_val="$3"
+
+    if grep -q "^${config_key}=" "$answerfile"; then
+	echo Updating ${config_key}=${config_val} >&2
+	sed -i "/^${config_key}=/ s/=.*/=${config_val}/" "$answerfile"
+    else
+	echo Adding ${config_key}=${config_val} >&2
+	echo "${config_key}=${config_val}" >> "$answerfile"
+    fi
+}
+
+function merge_local_config() {
+    local answerfile=$1
+
+    [ -f "packstack-config.post" ] || return
+
+    while read line; do
+	local name=${line%=*}
+	local value=${line#*=}
+	set_packstack_value $answerfile $name $value
+    done < packstack-config.post
+}
+
+function generate_packstack_answers () {
+    local answerfile="packstack-answers-$(date +%Y%m%d).txt"
+
+    if rpm -q openstack-packstack | grep -q 2013.1; then
+	neutron=QUANTUM
+    else
+	neutron=NEUTRON
+    fi
+
+    packstack --gen-answer-file $answerfile
+    set_packstack_value $answerfile CONFIG_${neutron}_INSTALL n
+    merge_local_config $answerfile
+    echo $answerfile
 }
 
 function do_packstack() {
     local answers=$(get_packstack_answers)
-    if rpm -q openstack-packstack | grep -q 2013.1; then
-	neutron=quantum
-    else
-	neutron=neutron
+
+    if ! [ "$answers" -a -f "$answers" ]; then
+	generate_packstack_answers
+        answers=$(get_packstack_answers)
     fi
 
-    if [ "$answers" -a -f "$answers" ]; then
-	packstack --answer-file "$answers"
-    else
-	packstack --allinone --os-${neutron}-install=n
+    if ! [ "$answers" -a -f "$answers" ]; then
+	die Failed to find or generate an answers file.
     fi
-}
 
-function merge_config_and_rerun_packstack() {
-    local answers=$(get_packstack_answers)
-    if [ ! -f "packstack-config.post" ]; then
-	return
-    fi
-    cp ${answers} ${answers}.orig-grizzly
-    for line in $(cat packstack-config.post); do
-	local name=$(echo $line | cut -d= -f1)
-	local value=$(echo $line | cut -d= -f2-)
-	echo Setting ${name}=${value}
-	sed -ri "s/^${name}=(.*)$/${name}=${value}/" $answers
-    done
-    do_packstack
+    packstack --answer-file "$answers"
 }
 
 function create_instance() {
